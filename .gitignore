@@ -1,0 +1,15 @@
+Binaries/
+
+Build/*
+!Build/*/
+Build/*/**
+!Build/*/PakBlacklist*.txt
+!Build/**/*.ico
+
+Config/Localization/
+
+DerivedDataCache/
+
+Intermediate/
+
+Saved/
