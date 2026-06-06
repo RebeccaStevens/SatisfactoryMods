@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 
+#include "Configuration/Properties/ConfigPropertyRaw.h"
 #include "Configuration/Properties/ConfigPropertySection.h"
 #include "Kismet/RuntimeBlueprintFunctionLibrary.h"
 #include "Module/WorldModuleManager.h"
@@ -17,6 +18,7 @@
 
 void ABGC_AbstractPlayerSubsystem::BeginPlay() {
   Super::BeginPlay();
+  LoadBuildModeDataFromConfig();
 }
 
 UTexture2D* ABGC_AbstractPlayerSubsystem::GetBuildModeIconChecked(TSubclassOf<AFGHologram> HologramClass) {
@@ -205,18 +207,71 @@ bool ABGC_AbstractPlayerSubsystem::ResolveBuildModeData(
   return true;
 }
 
-FString ABGC_AbstractPlayerSubsystem::BuildModesDataToJsonString() {
-  TSharedPtr<FJsonObject> RootObject = BuildModesDataToJson();
-  if (!RootObject.IsValid()) {
-    UE_LOG(LogBuildGunConfig, Warning, TEXT("Failed to serialize build mode data."));
-    return FString();
+UConfigPropertyRaw* ABGC_AbstractPlayerSubsystem::GetBuildModesProperty() {
+  auto World = GetWorld();
+  if (!IsValid(World)) {
+    return nullptr;
   }
 
-  FString JsonString;
-  auto Writer = TJsonWriterFactory<TCHAR, TCondensedJsonPrintPolicy<TCHAR>>::Create(&JsonString);
-  FJsonSerializer::Serialize(RootObject.ToSharedRef(), Writer);
+  auto RootInstance = UBGC_AbstractInstance::Get(World);
+  if (!IsValid(RootInstance)) {
+    return nullptr;
+  }
 
-  return JsonString;
+  if (RootInstance->ModConfigurations.Num() == 0) {
+    return nullptr;
+  }
+
+  auto ConfigClass = RootInstance->ModConfigurations[0];
+  if (!IsValid(ConfigClass)) {
+    return nullptr;
+  }
+
+  auto RootProperty = URuntimeBlueprintFunctionLibrary::Conv_ModConfigurationToConfigProperty(ConfigClass, World);
+  if (!IsValid(RootProperty)) {
+    return nullptr;
+  }
+
+  auto RootSection = Cast<UConfigPropertySection>(RootProperty);
+  if (!IsValid(RootSection)) {
+    return nullptr;
+  }
+
+  auto BuildModesProperty = RootSection->SectionProperties.Find(TEXT("BuildModes"));
+  if (BuildModesProperty == nullptr) {
+    return nullptr;
+  }
+
+  auto BuildModesRaw = Cast<UConfigPropertyRaw>(*BuildModesProperty);
+  if (!IsValid(BuildModesRaw)) {
+    return nullptr;
+  }
+
+  return BuildModesRaw;
+}
+
+void ABGC_AbstractPlayerSubsystem::SaveBuildModeDataToConfig() {
+  auto BuildModesProperty = GetBuildModesProperty();
+  if (!IsValid(BuildModesProperty)) {
+    return;
+  }
+
+  BuildModesProperty->SetValue(BuildModesDataToJson());
+  BuildModesProperty->MarkDirty();
+}
+
+void ABGC_AbstractPlayerSubsystem::LoadBuildModeDataFromConfig() {
+  auto BuildModesProperty = GetBuildModesProperty();
+  if (!IsValid(BuildModesProperty)) {
+    return;
+  }
+
+  TSharedPtr<FJsonObject> JsonObject = BuildModesProperty->Value->AsObject();
+  if (!JsonObject.IsValid()) {
+    return;
+  }
+
+  LoadBuildModeDataFromJson(JsonObject);
 }
 
 TSharedPtr<FJsonObject> ABGC_AbstractPlayerSubsystem::BuildModesDataToJson() {
@@ -231,22 +286,6 @@ TSharedPtr<FJsonObject> ABGC_AbstractPlayerSubsystem::BuildModesDataToJson() {
   }
 
   return HologramsObject;
-}
-
-void ABGC_AbstractPlayerSubsystem::LoadBuildModeDataFromJsonString(const FString& JsonString) {
-  if (JsonString.IsEmpty()) {
-    return;
-  }
-
-  TSharedPtr<FJsonObject> JsonObject = MakeShareable(new FJsonObject);
-  auto Reader = TJsonReaderFactory<>::Create(JsonString);
-
-  if (!FJsonSerializer::Deserialize(Reader, JsonObject)) {
-    UE_LOG(LogBuildGunConfig, Warning, TEXT("Failed to deserialize JSON string."));
-    return;
-  }
-
-  LoadBuildModeDataFromJson(JsonObject);
 }
 
 void ABGC_AbstractPlayerSubsystem::LoadBuildModeDataFromJson(TSharedPtr<FJsonObject>& JsonObject) {

@@ -4,6 +4,7 @@
 
 #include "FGRecipeManager.h"
 
+#include "Configuration/Properties/ConfigPropertyRaw.h"
 #include "Subsystem/ModSubsystem.h"
 #include "UI/FGInteractWidget.h"
 #include "UI/FGUserWidget.h"
@@ -146,23 +147,27 @@ public:
     UPARAM(DisplayName = "ResolvedBuildModeData") FBGC_BuildMode_Data& out_BuildModeData);
 
   /**
-   * Serializes the build mode data.
+   * Get the BuildModes ConfigProperty.
    */
   UFUNCTION(BlueprintCallable, Category = "BuildGunConfig|BuildModes")
-  FString BuildModesDataToJsonString();
+  UConfigPropertyRaw* GetBuildModesProperty();
+
+  /**
+   * Save the BuildModes data.
+   */
+  UFUNCTION(BlueprintCallable, Category = "BuildGunConfig|BuildModes")
+  void SaveBuildModeDataToConfig();
+
+  /**
+   * Load the BuildModes data.
+   */
+  UFUNCTION(BlueprintCallable, Category = "BuildGunConfig|BuildModes")
+  void LoadBuildModeDataFromConfig();
 
   /**
    * Get a JSON representation of the mutable parts of the build mode data.
    */
   TSharedPtr<FJsonObject> BuildModesDataToJson();
-
-  /**
-   * Loads the build mode data from a JSON string.
-   *
-   * @param JsonString The JSON string to load the build mode data from.
-   */
-  UFUNCTION(BlueprintCallable, Category = "BuildGunConfig|BuildModes")
-  void LoadBuildModeDataFromJsonString(const FString& JsonString);
 
   /**
    * Loads the build mode data from a JSON object.
