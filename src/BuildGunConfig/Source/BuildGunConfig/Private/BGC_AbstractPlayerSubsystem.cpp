@@ -2,22 +2,34 @@
 
 #include "CoreMinimal.h"
 
-#include "Configuration/Properties/ConfigPropertySection.h"
-#include "Kismet/RuntimeBlueprintFunctionLibrary.h"
-#include "Module/WorldModuleManager.h"
-
 #include "FGBuildGunModeDescriptor.h"
+#include "FGGameUserSettings.h"
 #include "FGRecipeManager.h"
 #include "Hologram/FGHologram.h"
 #include "Resources/FGBuildingDescriptor.h"
 #include "Resources/FGItemDescriptor.h"
+#include "Settings/FGUserSettingApplyType.h"
+
+#include "Configuration/Properties/ConfigPropertySection.h"
+#include "Kismet/RuntimeBlueprintFunctionLibrary.h"
+#include "Module/WorldModuleManager.h"
 
 #include "BGC_Module.h"
-#include "Config/BGC_BuildMode_Data.h"
+#include "UserSettings/BGC_BuildMode_Data.h"
+
+void ABGC_AbstractPlayerSubsystem::BeginPlay() {
+  Super::BeginPlay();
+  auto WorldModule = UBGC_AbstractWorld::Get(this);
+  if (!ensureMsgf(IsValid(WorldModule), TEXT("Failed to get the world module."))) {
+    return;
+  }
+  WorldModule->PlayerSubsystem = this;
+  LoadBuildModeData();
+}
 
 UTexture2D* ABGC_AbstractPlayerSubsystem::GetBuildModeIconChecked(TSubclassOf<AFGHologram> HologramClass) {
-  auto& hologramData = BuildModesData.FindChecked(HologramClass);
-  return hologramData.Icon;
+  auto& HologramData = BuildModesData.FindChecked(HologramClass);
+  return HologramData.Icon;
 }
 
 FBGC_BuildMode_Data& ABGC_AbstractPlayerSubsystem::GetBuildModeDataChecked(TSubclassOf<AFGHologram> HologramClass) {
@@ -26,147 +38,173 @@ FBGC_BuildMode_Data& ABGC_AbstractPlayerSubsystem::GetBuildModeDataChecked(TSubc
 
 FBGC_BuildMode_DataEntry& ABGC_AbstractPlayerSubsystem::GetBuildModeDataEntryChecked(
   TSubclassOf<AFGHologram> HologramClass, TSubclassOf<UFGBuildGunModeDescriptor> BuildModeClass) {
-  auto& hologramData = BuildModesData.FindChecked(HologramClass);
-  return hologramData.BuildModes.FindChecked(BuildModeClass);
+  auto& HologramData = BuildModesData.FindChecked(HologramClass);
+  return HologramData.BuildModes.FindChecked(BuildModeClass);
 }
 
-void ABGC_AbstractPlayerSubsystem::RemoveBuildModeData(TSubclassOf<AFGHologram> HologramClass) {
-  // Don't remove the entry, just clear the relevant data.
-  auto hologramData = BuildModesData.Find(HologramClass);
-  if (hologramData == nullptr) {
+void ABGC_AbstractPlayerSubsystem::ResetBuildModeData(bool bSave) {
+  for (auto& HologramData : BuildModesData) {
+    HologramData.Value.Reset();
+  }
+  if (bSave) {
+    SaveBuildModeData();
+  }
+}
+
+void ABGC_AbstractPlayerSubsystem::RemoveBuildModeData(TSubclassOf<AFGHologram> HologramClass, bool bSave) {
+  auto HologramData = BuildModesData.Find(HologramClass);
+  if (HologramData == nullptr) {
     return;
   }
-  hologramData->InheritBuildModes = false;
-  hologramData->BuildModes.Empty();
+  HologramData->Reset();
+  if (bSave) {
+    SaveBuildModeData();
+  }
 }
 
 void ABGC_AbstractPlayerSubsystem::RemoveBuildModeDataEntry(
-  TSubclassOf<AFGHologram> HologramClass, TSubclassOf<UFGBuildGunModeDescriptor> BuildModeClass) {
-  auto hologramData = BuildModesData.Find(HologramClass);
-  if (hologramData == nullptr) {
+  TSubclassOf<AFGHologram> HologramClass, TSubclassOf<UFGBuildGunModeDescriptor> BuildModeClass, bool bSave) {
+  auto HologramData = BuildModesData.Find(HologramClass);
+  if (HologramData == nullptr) {
     return;
   }
-  hologramData->BuildModes.Remove(BuildModeClass);
+  HologramData->BuildModes.Remove(BuildModeClass);
+  if (bSave) {
+    SaveBuildModeData();
+  }
 }
 
 void ABGC_AbstractPlayerSubsystem::SetBuildModeDataChecked(
-  TSubclassOf<AFGHologram> HologramClass, const FBGC_BuildMode_Data& HologramBuildModeData) {
-  auto& hologramData = BuildModesData.FindChecked(HologramClass);
-  hologramData = HologramBuildModeData;
+  TSubclassOf<AFGHologram> HologramClass, const FBGC_BuildMode_Data& HologramBuildModeData, bool bSave) {
+  auto& HologramData = BuildModesData.FindChecked(HologramClass);
+  HologramData = HologramBuildModeData;
+  if (bSave) {
+    SaveBuildModeData();
+  }
 }
 
 void ABGC_AbstractPlayerSubsystem::SetBuildModeDataEntryChecked(
   TSubclassOf<AFGHologram> HologramClass,
   TSubclassOf<UFGBuildGunModeDescriptor> BuildModeClass,
-  const FBGC_BuildMode_DataEntry& HologramBuildModeDataEntry) {
-  auto& hologramData = BuildModesData.FindChecked(HologramClass);
-  hologramData.BuildModes.Add(BuildModeClass, HologramBuildModeDataEntry);
+  const FBGC_BuildMode_DataEntry& HologramBuildModeDataEntry,
+  bool bSave) {
+  auto& HologramData = BuildModesData.FindChecked(HologramClass);
+  HologramData.BuildModes.Add(BuildModeClass, HologramBuildModeDataEntry);
+  if (bSave) {
+    SaveBuildModeData();
+  }
 }
 
 void ABGC_AbstractPlayerSubsystem::RebuildBuildModesData() {
   if (!IsValid(RecipeManager)) {
     RecipeManager = AFGRecipeManager::Get(this);
+    if (!IsValid(RecipeManager)) {
+      UE_LOG(LogBuildGunConfig, Error, TEXT("Failed to get recipe manager."));
+      return;
+    }
   }
 
-  TMap<TSubclassOf<AFGHologram>, TArray<TSubclassOf<UFGBuildingDescriptor>>> hologramToBuildingDescriptorsMap;
-  TMap<TSubclassOf<AFGHologram>, TArray<TSubclassOf<UFGBuildingDescriptor>>> aliasedHologramToBuildingDescriptorsMap;
+  TMap<TSubclassOf<AFGHologram>, TArray<TSubclassOf<UFGBuildingDescriptor>>> HologramToBuildingDescriptorsMap;
+  TMap<TSubclassOf<AFGHologram>, TArray<TSubclassOf<UFGBuildingDescriptor>>> AliasedHologramToBuildingDescriptorsMap;
 
-  TArray<UClass*> buildingDescriptorsUClass;
-  GetDerivedClasses(UFGBuildingDescriptor::StaticClass(), buildingDescriptorsUClass, true);
+  TArray<UClass*> BuildingDescriptorsUClass;
+  GetDerivedClasses(UFGBuildingDescriptor::StaticClass(), BuildingDescriptorsUClass, true);
 
-  for (auto buildingDescriptorUClass : buildingDescriptorsUClass) {
-    auto buildingDescriptor = (TSubclassOf<UFGBuildingDescriptor>)buildingDescriptorUClass;
-    auto hologramClass = UFGBuildDescriptor::GetHologramClass(*buildingDescriptor);
-    if (hologramClass == nullptr) {
+  auto ShowLocked = ShowLockedBuildables();
+
+  for (auto BuildingDescriptorUClass : BuildingDescriptorsUClass) {
+    auto BuildingDescriptor = (TSubclassOf<UFGBuildingDescriptor>)BuildingDescriptorUClass;
+    auto HologramClass = UFGBuildDescriptor::GetHologramClass(*BuildingDescriptor);
+    if (HologramClass == nullptr) {
       continue;
     }
-    if (!IsValid(RecipeManager) || RecipeManager->FindRecipesByProduct(buildingDescriptor, true).Num() == 0) {
+    if (!ShowLocked && RecipeManager->FindRecipesByProduct(BuildingDescriptor, true).Num() == 0) {
       continue;
     }
 
-    hologramToBuildingDescriptorsMap.FindOrAdd(hologramClass).AddUnique(*buildingDescriptor);
+    HologramToBuildingDescriptorsMap.FindOrAdd(HologramClass).AddUnique(*BuildingDescriptor);
   }
 
-  for (auto& pair : hologramToBuildingDescriptorsMap) {
-    auto& hologramClass = pair.Key;
-    auto hologram = hologramClass.GetDefaultObject();
-    if (hologram == nullptr) {
+  for (auto& Pair : HologramToBuildingDescriptorsMap) {
+    auto& HologramClass = Pair.Key;
+    auto Hologram = HologramClass.GetDefaultObject();
+    if (Hologram == nullptr) {
       continue;
     }
 
-    TArray<TSubclassOf<UFGBuildGunModeDescriptor>> supportedBuildModes;
-    hologram->GetSupportedBuildModes_Implementation(supportedBuildModes);
-    if (supportedBuildModes.Num() <= 1) {
+    TArray<TSubclassOf<UFGBuildGunModeDescriptor>> SupportedBuildModes;
+    Hologram->GetSupportedBuildModes_Implementation(SupportedBuildModes);
+    if (SupportedBuildModes.Num() <= 1) {
       continue;
     }
 
-    auto& buildingDescriptors = pair.Value;
-    if (buildingDescriptors.Num() == 0) {
+    auto& BuildingDescriptors = Pair.Value;
+    if (BuildingDescriptors.Num() == 0) {
       continue;
     }
-    buildingDescriptors.StableSort(
+    BuildingDescriptors.StableSort(
       [](auto& A, auto& B) { return UFGItemDescriptor::GetMenuPriority(A) < UFGItemDescriptor::GetMenuPriority(B); });
 
     // Add valid aliases to the aliases map for handling later.
-    if (BuildModesAliases.Contains(hologramClass)) {
-      auto& aliasClass = BuildModesAliases.FindChecked(hologramClass);
-      auto aliasHologram = aliasClass.GetDefaultObject();
-      if (aliasHologram == nullptr) {
+    if (BuildModesAliases.Contains(HologramClass)) {
+      auto& AliasClass = BuildModesAliases.FindChecked(HologramClass);
+      auto AliasHologram = AliasClass.GetDefaultObject();
+      if (AliasHologram == nullptr) {
         continue;
       }
 
-      TArray<TSubclassOf<UFGBuildGunModeDescriptor>> supportedAliasBuildModes;
-      aliasHologram->GetSupportedBuildModes_Implementation(supportedAliasBuildModes);
+      TArray<TSubclassOf<UFGBuildGunModeDescriptor>> SupportedAliasBuildModes;
+      AliasHologram->GetSupportedBuildModes_Implementation(SupportedAliasBuildModes);
 
-      if (supportedAliasBuildModes != supportedBuildModes) {
+      if (SupportedAliasBuildModes != SupportedBuildModes) {
         UE_LOG(
           LogBuildGunConfig,
           Warning,
           TEXT("Alias %s has different supported build modes than its target %s. Skipping alias."),
-          *aliasClass->GetName(),
-          *hologramClass->GetName());
+          *AliasClass->GetName(),
+          *HologramClass->GetName());
         continue;
       }
 
-      auto& aliasedBuildingDescriptors = aliasedHologramToBuildingDescriptorsMap.FindOrAdd(hologramClass);
-      for (auto buildingDescriptor : buildingDescriptors) {
-        aliasedBuildingDescriptors.AddUnique(buildingDescriptor);
+      auto& AliasedBuildingDescriptors = AliasedHologramToBuildingDescriptorsMap.FindOrAdd(HologramClass);
+      for (auto BuildingDescriptor : BuildingDescriptors) {
+        AliasedBuildingDescriptors.AddUnique(BuildingDescriptor);
       }
       continue;
     }
 
-    auto& buildModeData = BuildModesData.FindOrAdd(hologramClass);
-    if (!buildModeData.IsEnabled) {
+    auto& BuildModeData = BuildModesData.FindOrAdd(HologramClass);
+    if (!BuildModeData.IsEnabled) {
       continue;
     }
-    if (buildModeData.DisplayName.IsEmpty()) {
-      UE_LOG(LogBuildGunConfig, Verbose, TEXT("Initializing %s display name."), *hologramClass->GetName());
-      buildModeData.DisplayName = UFGItemDescriptor::GetItemName(*buildingDescriptors[0]);
+    if (BuildModeData.DisplayName.IsEmpty()) {
+      UE_LOG(LogBuildGunConfig, Verbose, TEXT("Initializing %s display name."), *HologramClass->GetName());
+      BuildModeData.DisplayName = UFGItemDescriptor::GetItemName(*BuildingDescriptors[0]);
     }
-    if (!IsValid(buildModeData.Icon)) {
-      buildModeData.Icon = UFGItemDescriptor::GetBigIcon(*buildingDescriptors[0]);
+    if (!IsValid(BuildModeData.Icon)) {
+      BuildModeData.Icon = UFGItemDescriptor::GetBigIcon(*BuildingDescriptors[0]);
     }
 
-    buildModeData.AppliesTo = buildingDescriptors;
+    BuildModeData.AppliesTo = BuildingDescriptors;
 
-    for (auto index = 0; index < supportedBuildModes.Num(); index++) {
-      auto buildModeClass = supportedBuildModes[index];
-      auto buildModeDataEntry = buildModeData.BuildModes.Find(buildModeClass);
-      if (buildModeDataEntry == nullptr) {
-        FBGC_BuildMode_DataEntry newEntry;
-        newEntry.Index = index;
-        newEntry.IsEnabled = true;
-        buildModeData.BuildModes.Add(buildModeClass, newEntry);
+    for (auto Index = 0; Index < SupportedBuildModes.Num(); Index++) {
+      auto BuildModeClass = SupportedBuildModes[Index];
+      auto BuildModeDataEntry = BuildModeData.BuildModes.Find(BuildModeClass);
+      if (BuildModeDataEntry == nullptr) {
+        FBGC_BuildMode_DataEntry NewEntry;
+        NewEntry.Index = Index;
+        NewEntry.IsEnabled = true;
+        BuildModeData.BuildModes.Add(BuildModeClass, NewEntry);
       }
     }
   }
 
-  for (auto& buildingDescriptor : aliasedHologramToBuildingDescriptorsMap) {
-    auto& hologramClass = buildingDescriptor.Key;
-    auto& buildingDescriptors = buildingDescriptor.Value;
-    auto& aliasClass = BuildModesAliases.FindChecked(hologramClass);
-    auto& buildModeData = BuildModesData.FindChecked(aliasClass);
-    buildModeData.AppliesTo.Append(buildingDescriptors);
+  for (auto& BuildingDescriptor : AliasedHologramToBuildingDescriptorsMap) {
+    auto& HologramClass = BuildingDescriptor.Key;
+    auto& BuildingDescriptors = BuildingDescriptor.Value;
+    auto& AliasClass = BuildModesAliases.FindChecked(HologramClass);
+    auto& BuildModeData = BuildModesData.FindChecked(AliasClass);
+    BuildModeData.AppliesTo.Append(BuildingDescriptors);
   }
 }
 
@@ -176,29 +214,46 @@ const FBGC_BuildMode_Data& ABGC_AbstractPlayerSubsystem::ResolveBuildModeInherit
     return HologramBuildModeData;
   }
 
-  auto inheritedData = BuildModesData.Find(HologramBuildModeData.InheritBuildModesFrom);
-  if (inheritedData == nullptr) {
+  auto InheritedData = BuildModesData.Find(HologramBuildModeData.InheritBuildModesFrom);
+  if (InheritedData == nullptr) {
     return HologramBuildModeData;
   }
 
-  return *inheritedData;
+  return *InheritedData;
 }
 
 bool ABGC_AbstractPlayerSubsystem::ResolveBuildModeData(
-  TSubclassOf<AFGHologram> HologramClass, FBGC_BuildMode_Data& out_BuildModeData) {
-  auto hologramBuildModeData = BuildModesData.Find(HologramClass);
-  if (hologramBuildModeData == nullptr) {
-    auto aliasClass = BuildModesAliases.Find(HologramClass);
-    if (aliasClass == nullptr) {
+  TSubclassOf<AFGHologram> HologramClass, FBGC_BuildMode_Data& Out_BuildModeData) {
+  auto HologramBuildModeData = BuildModesData.Find(HologramClass);
+  if (HologramBuildModeData == nullptr) {
+    auto AliasClass = BuildModesAliases.Find(HologramClass);
+    if (AliasClass == nullptr) {
       return false;
     }
-    hologramBuildModeData = BuildModesData.Find(*aliasClass);
-    if (hologramBuildModeData == nullptr) {
+    HologramBuildModeData = BuildModesData.Find(*AliasClass);
+    if (HologramBuildModeData == nullptr) {
       return false;
     }
   }
-  out_BuildModeData = ResolveBuildModeInheritance(HologramClass, *hologramBuildModeData);
+  Out_BuildModeData = ResolveBuildModeInheritance(HologramClass, *HologramBuildModeData);
   return true;
+}
+
+void ABGC_AbstractPlayerSubsystem::SaveBuildModeData() {
+  auto World = GetWorld();
+  if (!ensureMsgf(IsValid(World), TEXT("Failed to get the world."))) {
+    return;
+  }
+
+  UFGGameUserSettings* UserSettings = UFGGameUserSettings::GetFGGameUserSettings();
+  auto BuildModesSetting = UserSettings->FindUserSetting("BuildGunConfig.BuildModes");
+  if (!IsValid(BuildModesSetting)) {
+    UE_LOG(LogBuildGunConfig, Warning, TEXT("Failed to find build modes setting."));
+    return;
+  }
+  FVariant Data = BuildModesDataToJsonString();
+  BuildModesSetting->ForceSetValue(Data);
+  BuildModesSetting->MarkDirty();
 }
 
 FString ABGC_AbstractPlayerSubsystem::BuildModesDataToJsonString() {
@@ -218,8 +273,7 @@ FString ABGC_AbstractPlayerSubsystem::BuildModesDataToJsonString() {
 TSharedPtr<FJsonObject> ABGC_AbstractPlayerSubsystem::BuildModesDataToJson() {
   TSharedPtr<FJsonObject> HologramsObject = MakeShareable(new FJsonObject());
   for (const auto& HologramEntry : BuildModesData) {
-    if (HologramEntry.Key == nullptr) {
-      UE_LOG(LogBuildGunConfig, Warning, TEXT("Skipping null hologram key during serialization."));
+    if (!ensureMsgf(HologramEntry.Key != nullptr, TEXT("Skipping null hologram key during serialization."))) {
       continue;
     }
 
@@ -229,7 +283,18 @@ TSharedPtr<FJsonObject> ABGC_AbstractPlayerSubsystem::BuildModesDataToJson() {
   return HologramsObject;
 }
 
-void ABGC_AbstractPlayerSubsystem::LoadBuildModeDataFromJsonString(const FString& JsonString) {
+void ABGC_AbstractPlayerSubsystem::LoadBuildModeData() {
+  auto World = GetWorld();
+  if (!ensureMsgf(IsValid(World), TEXT("Failed to get the world."))) {
+    return;
+  }
+
+  UFGGameUserSettings* UserSettings = UFGGameUserSettings::GetFGGameUserSettings();
+  auto BuildModes = UserSettings->GetStringOptionValue("BuildGunConfig.BuildModes");
+  LoadBuildModeData(BuildModes);
+}
+
+void ABGC_AbstractPlayerSubsystem::LoadBuildModeData(const FString& JsonString) {
   if (JsonString.IsEmpty()) {
     return;
   }
@@ -242,48 +307,45 @@ void ABGC_AbstractPlayerSubsystem::LoadBuildModeDataFromJsonString(const FString
     return;
   }
 
-  LoadBuildModeDataFromJson(JsonObject);
+  LoadBuildModeData(JsonObject);
 }
 
-void ABGC_AbstractPlayerSubsystem::LoadBuildModeDataFromJson(TSharedPtr<FJsonObject> JsonObject) {
+void ABGC_AbstractPlayerSubsystem::LoadBuildModeData(TSharedPtr<FJsonObject> JsonObject) {
   if (!JsonObject.IsValid()) {
+    UE_LOG(LogBuildGunConfig, Warning, TEXT("Failed to load build mode data: JsonObject is invalid."));
     return;
   }
 
-  auto buildModesObject = JsonObject->GetObjectField(TEXT("BuildModes"));
-  if (buildModesObject == nullptr) {
-    return;
-  }
-  for (const auto& HologramEntry : buildModesObject->Values) {
-    auto hologramClass = LoadClass<AFGHologram>(nullptr, *HologramEntry.Key);
-    if (hologramClass == nullptr) {
+  for (const auto& HologramEntry : JsonObject->Values) {
+    auto HologramClass = LoadClass<AFGHologram>(nullptr, *HologramEntry.Key);
+    if (HologramClass == nullptr) {
       UE_LOG(LogBuildGunConfig, Warning, TEXT("Failed to load hologram class with path %s"), *HologramEntry.Key);
       continue;
     }
 
-    auto hologramDataObject = HologramEntry.Value->AsObject();
-    if (hologramDataObject == nullptr) {
+    auto HologramDataObject = HologramEntry.Value->AsObject();
+    if (HologramDataObject == nullptr) {
       continue;
     }
 
-    FBGC_BuildMode_Data& hologramData = BuildModesData.FindOrAdd(hologramClass);
-    auto loadedHologramData = FBGC_BuildMode_Data::FromJson(hologramDataObject);
-    hologramData.InheritBuildModes = loadedHologramData.InheritBuildModes;
-    hologramData.BuildModes = loadedHologramData.BuildModes;
+    FBGC_BuildMode_Data& HologramData = BuildModesData.FindOrAdd(HologramClass);
+    auto LoadedHologramData = FBGC_BuildMode_Data::FromJson(HologramDataObject);
+    HologramData.InheritBuildModes = LoadedHologramData.InheritBuildModes;
+    HologramData.BuildModes = LoadedHologramData.BuildModes;
   }
 }
 
 void ABGC_AbstractPlayerSubsystem::FilterAndSortBuildModes(
   const FBGC_BuildMode_Data& HologramBuildModeData,
-  TArray<TSubclassOf<UFGBuildGunModeDescriptor>>& out_BuildModes) const {
-  if (out_BuildModes.Num() == 0) {
+  TArray<TSubclassOf<UFGBuildGunModeDescriptor>>& Out_BuildModes) const {
+  if (Out_BuildModes.Num() == 0) {
     return;
   }
 
-  auto firstBuildMode = out_BuildModes[0];
+  auto FirstBuildMode = Out_BuildModes[0];
 
   // Remove disabled build modes.
-  out_BuildModes.RemoveAll([&](auto& BuildMode) {
+  Out_BuildModes.RemoveAll([&](auto& BuildMode) {
     auto Data = HologramBuildModeData.BuildModes.Find(BuildMode);
     // Keep build modes that we don't have data entries for.
     if (Data == nullptr) {
@@ -293,13 +355,13 @@ void ABGC_AbstractPlayerSubsystem::FilterAndSortBuildModes(
   });
 
   // Make sure we have at least one build mode.
-  if (out_BuildModes.Num() == 0) {
-    out_BuildModes.Add(firstBuildMode);
+  if (Out_BuildModes.Num() == 0) {
+    Out_BuildModes.Add(FirstBuildMode);
     return;
   }
 
   // Sort the build modes.
-  out_BuildModes.StableSort([&](auto& A, auto& B) {
+  Out_BuildModes.StableSort([&](auto& A, auto& B) {
     auto AData = HologramBuildModeData.BuildModes.Find(A);
     auto BData = HologramBuildModeData.BuildModes.Find(B);
 
@@ -322,10 +384,10 @@ ABGC_AbstractPlayerSubsystem::ValidateBuildModeInheritance(FDataValidationContex
     }
 
     // Validate that the build mode inherits from a valid hologram class.
-    auto inheritedData = BuildModesData.Find(HologramBuildModeData.Value.InheritBuildModesFrom);
+    auto InheritedData = BuildModesData.Find(HologramBuildModeData.Value.InheritBuildModesFrom);
 
     // If the inherited data is not found, it's an error.
-    if (inheritedData == nullptr) {
+    if (InheritedData == nullptr) {
       ValidationResult = EDataValidationResult::Invalid;
       Context.AddError(
         FText::FromString(
@@ -336,7 +398,7 @@ ABGC_AbstractPlayerSubsystem::ValidateBuildModeInheritance(FDataValidationContex
       continue;
     }
 
-    if (inheritedData->InheritBuildModesFrom != nullptr) {
+    if (InheritedData->InheritBuildModesFrom != nullptr) {
       // If the inherited data also inherits from another hologram, it's an error.
       ValidationResult = EDataValidationResult::Invalid;
       Context.AddError(
@@ -347,9 +409,6 @@ ABGC_AbstractPlayerSubsystem::ValidateBuildModeInheritance(FDataValidationContex
               "Only single level inheritance is supported."),
             *HologramBuildModeData.Key->GetName(),
             *HologramBuildModeData.Value.InheritBuildModesFrom->GetName())));
-
-      // Autofix.
-      // HologramBuildModeData.Value.InheritBuildModesFrom = inheritedData->InheritBuildModesFrom;
       continue;
     }
   }

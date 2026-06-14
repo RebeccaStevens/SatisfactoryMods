@@ -4,7 +4,7 @@
 
 #include "Module/GameWorldModule.h"
 
-#include "Config/BGC_BuildMode_Data.h"
+#include "UserSettings/BGC_BuildMode_Data.h"
 
 #include "BGC_AbstractWorld.generated.h"
 
@@ -39,7 +39,9 @@ protected:
    * The player subsystem where data for this client is stored.
    */
   UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "BuildGunConfig")
-  ABGC_AbstractPlayerSubsystem* PlayerSubsystem;
+  TObjectPtr<ABGC_AbstractPlayerSubsystem> PlayerSubsystem;
+
+  friend class ABGC_AbstractPlayerSubsystem;
 
 private:
 };

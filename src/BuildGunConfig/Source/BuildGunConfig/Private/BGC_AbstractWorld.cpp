@@ -9,7 +9,7 @@
 #include "Subsystem/SubsystemActorManager.h"
 
 #include "BGC_Module.h"
-#include "Config/BGC_BuildMode_Data.h"
+#include "UserSettings/BGC_BuildMode_Data.h"
 
 UBGC_AbstractWorld* UBGC_AbstractWorld::Get(const UObject* WorldContext) {
   if (!ensureMsgf(IsValid(WorldContext), TEXT("Invalid world context."))) {

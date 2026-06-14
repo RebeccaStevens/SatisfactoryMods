@@ -27,7 +27,6 @@ public:
     BlueprintPure,
     Category = "BuildGunConfig",
     meta = (DisplayName = "Get BGC Mod Name", CompactNodeTitle = "BGC Mod Name"))
-
   static FName GetModName() {
     return ModName;
   }
@@ -44,6 +43,4 @@ public:
   static UBGC_AbstractInstance* Get(UObject* WorldContext);
 
   virtual void DispatchLifecycleEvent(ELifecyclePhase Phase) override;
-
-private:
 };

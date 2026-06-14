@@ -119,13 +119,17 @@ struct FBGC_BuildMode_Data {
   TSharedPtr<FJsonObject> ToJson() const {
     TSharedPtr<FJsonObject> JsonObject = MakeShareable(new FJsonObject());
 
-    JsonObject->SetBoolField(TEXT("InheritBuildModes"), InheritBuildModes);
-
-    TSharedPtr<FJsonObject> BuildModesObject = MakeShareable(new FJsonObject());
-    for (const auto& BuildModeEntry : BuildModes) {
-      BuildModesObject->SetObjectField(BuildModeEntry.Key->GetPathName(), BuildModeEntry.Value.ToJson());
+    if (InheritBuildModesFrom != nullptr) {
+      JsonObject->SetBoolField(TEXT("InheritBuildModes"), InheritBuildModes);
     }
-    JsonObject->SetObjectField(TEXT("BuildModes"), BuildModesObject);
+
+    if (BuildModes.Num() > 0) {
+      TSharedPtr<FJsonObject> BuildModesObject = MakeShareable(new FJsonObject());
+      for (const auto& BuildModeEntry : BuildModes) {
+        BuildModesObject->SetObjectField(BuildModeEntry.Key->GetPathName(), BuildModeEntry.Value.ToJson());
+      }
+      JsonObject->SetObjectField(TEXT("BuildModes"), BuildModesObject);
+    }
 
     return JsonObject;
   }
@@ -153,6 +157,11 @@ struct FBGC_BuildMode_Data {
     }
 
     return buildModeData;
+  }
+
+  void Reset() {
+    InheritBuildModes = false;
+    BuildModes.Empty();
   }
 
   /**
