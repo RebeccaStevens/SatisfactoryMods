@@ -138,3 +138,65 @@ TSubclassOf<AFGHologram> UBGC_Utils::GetHologramClass(const UFGBuildGunStateBuil
   }
   return hologram->GetClass();
 }
+
+double UBGC_Utils::RoundWithPrecision(double Value, int32 Precision, int32 Base) {
+  if (Value == 0.0) {
+    return 0.0;
+  }
+
+  double Factor = FMath::Pow(Base, (double)Precision);
+  return FMath::RoundToInt(Value * Factor) / Factor;
+}
+
+double UBGC_Utils::RoundSignificantDigits(double Value, int32 SignificantDigits, int32 Base) {
+  if (Value == 0.0) {
+    return 0.0;
+  }
+
+  double Factor =
+    FMath::Pow(Base, (double)(SignificantDigits - FMath::CeilToInt(FMath::LogX(Base, FMath::Abs(Value)))));
+  return FMath::RoundToInt(Value * Factor) / Factor;
+}
+
+double UBGC_Utils::FindClosestValueInSortedArray(const TArray<double>& Values, double Value) {
+  int32 Count = Values.Num();
+  if (Count == 0) {
+    return NAN;
+  }
+  if (Count == 1) {
+    return Values[0];
+  }
+
+  int32 MinIndex = 0;
+  int32 MaxIndex = Count - 1;
+  while (MaxIndex - MinIndex > 1) {
+    int32 MidIndex = (MinIndex + MaxIndex) / 2;
+    if (Values[MidIndex] < Value) {
+      MinIndex = MidIndex;
+    } else {
+      MaxIndex = MidIndex;
+    }
+  }
+
+  double MinValueDistance = FMath::Abs(Value - Values[MinIndex]);
+  double MaxValueDistance = FMath::Abs(Value - Values[MaxIndex]);
+  return MinValueDistance < MaxValueDistance ? Values[MinIndex] : Values[MaxIndex];
+}
+
+FUnitValue UBGC_Utils::ParseNumberWithUnitSuffix(const FText& NumberWithUnitSuffix) {
+  FString StringValue = NumberWithUnitSuffix.ToString();
+
+  // Find the last digit in the string.
+  int32 LastDigitIndex = StringValue.Len() - 1;
+  while (LastDigitIndex >= 0 && !TChar<TCHAR>::IsDigit(StringValue[LastDigitIndex])) {
+    --LastDigitIndex;
+  }
+  if (LastDigitIndex < 0) {
+    return FUnitValue(0.0, StringValue);
+  }
+
+  FUnitValue Result;
+  Result.Value = FCString::Atod(*StringValue.Mid(0, LastDigitIndex + 1));
+  Result.Unit = StringValue.Mid(LastDigitIndex + 1).TrimStartAndEnd();
+  return Result;
+}

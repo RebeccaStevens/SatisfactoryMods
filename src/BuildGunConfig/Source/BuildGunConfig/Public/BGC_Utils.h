@@ -19,6 +19,17 @@
 
 class UPanelSlot;
 
+USTRUCT(BlueprintType)
+struct FUnitValue {
+  GENERATED_BODY()
+
+  UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "BuildGunConfig|Struct")
+  double Value = 0.0;
+
+  UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "BuildGunConfig|Struct")
+  FString Unit = TEXT("");
+};
+
 /**
  * Utility functions for BuildGunConfig.
  */
@@ -80,7 +91,49 @@ public:
    * @param state The build gun state to get the hologram class from.
    */
   UFUNCTION(BlueprintPure, Category = "BuildGunConfig|Utils")
-  static TSubclassOf<AFGHologram> GetHologramClass(const UFGBuildGunStateBuild* state);
+  static TSubclassOf<AFGHologram> GetHologramClass(const UFGBuildGunStateBuild* State);
+
+  /**
+   * Round a value to the given number of decimal places.
+   */
+  UFUNCTION(BlueprintPure, Category = "BuildGunConfig|Math")
+  static double RoundWithPrecision(double Value, int32 Precision = 2, int32 Base = 10);
+
+  /**
+   * Round a value to the given number of significant digits.
+   */
+  UFUNCTION(BlueprintPure, Category = "BuildGunConfig|Math")
+  static double RoundSignificantDigits(double Value, int32 SignificantDigits = 2, int32 Base = 10);
+
+  /**
+   * Get the NaN value.
+   */
+  UFUNCTION(BlueprintPure, Category = "BuildGunConfig|Math", meta = (DisplayName = "NaN", CompactNodeTitle = "NaN"))
+  static double GetNaN() {
+    return NAN;
+  }
+
+  /**
+   * Check if a value is not a number.
+   */
+  UFUNCTION(BlueprintPure, Category = "BuildGunConfig|Math", meta = (DisplayName = "Is NaN"))
+  static bool IsNaN(double Value) {
+    return isnan(Value);
+  }
+
+  /**
+   * Find the closest value in an array to the given value.
+   *
+   * The array must be sorted in ascending order.
+   */
+  UFUNCTION(BlueprintPure, Category = "BuildGunConfig|Array")
+  static double FindClosestValueInSortedArray(const TArray<double>& Values, double Value);
+
+  /**
+   * Parse a number with a unit suffix.
+   */
+  UFUNCTION(BlueprintPure, Category = "BuildGunConfig|String")
+  static FUnitValue ParseNumberWithUnitSuffix(const FText& NumberWithUnitSuffix);
 
 protected:
   /**

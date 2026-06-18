@@ -23,16 +23,12 @@ protected:
    * The recipe manager.
    */
   UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, meta = (EditCondition = false, EditConditionHides))
-  AFGRecipeManager* RecipeManager;
+  TObjectPtr<AFGRecipeManager> RecipeManager;
 
   /**
    * The navigation history of the widget switcher.
    */
-  UPROPERTY(
-    EditDefaultsOnly,
-    BlueprintReadWrite,
-    Category = "BuildGunConfig",
-    meta = (EditCondition = false, EditConditionHides))
+  UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "BuildGunConfig", meta = (EditCondition = false, EditConditionHides))
   TArray<int32> NavigationHistory;
 
   /**
@@ -75,8 +71,7 @@ public:
    * @param BuildModeClass The class of the build mode to retrieve the data for.
    */
   UFUNCTION(BlueprintCallable, Category = "BuildGunConfig|BuildModes")
-  FBGC_BuildMode_DataEntry& GetBuildModeDataEntryChecked(
-    TSubclassOf<AFGHologram> HologramClass, TSubclassOf<UFGBuildGunModeDescriptor> BuildModeClass);
+  FBGC_BuildMode_DataEntry& GetBuildModeDataEntryChecked(TSubclassOf<AFGHologram> HologramClass, TSubclassOf<UFGBuildGunModeDescriptor> BuildModeClass);
 
   /**
    * Resets all build mode data.
@@ -94,8 +89,7 @@ public:
    * Removes the build mode data for a specific build mode of a specific hologram.
    */
   UFUNCTION(BlueprintCallable, Category = "BuildGunConfig|BuildModes")
-  void RemoveBuildModeDataEntry(
-    TSubclassOf<AFGHologram> HologramClass, TSubclassOf<UFGBuildGunModeDescriptor> BuildModeClass, bool bSave = true);
+  void RemoveBuildModeDataEntry(TSubclassOf<AFGHologram> HologramClass, TSubclassOf<UFGBuildGunModeDescriptor> BuildModeClass, bool bSave = true);
 
   /**
    * Sets the build mode data of a specific hologram.
@@ -105,10 +99,7 @@ public:
    * @param HologramBuildModeData The build mode data to save.
    */
   UFUNCTION(BlueprintCallable, Category = "BuildGunConfig|BuildModes")
-  void SetBuildModeDataChecked(
-    TSubclassOf<AFGHologram> HologramClass,
-    UPARAM(ref) const FBGC_BuildMode_Data& HologramBuildModeData,
-    bool bSave = true);
+  void SetBuildModeDataChecked(TSubclassOf<AFGHologram> HologramClass, UPARAM(ref) const FBGC_BuildMode_Data& HologramBuildModeData, bool bSave = true);
 
   /**
    * Set the build mode data for a specific build mode of a specific hologram.
@@ -120,10 +111,10 @@ public:
    */
   UFUNCTION(BlueprintCallable, Category = "BuildGunConfig|BuildModes")
   void SetBuildModeDataEntryChecked(
-    TSubclassOf<AFGHologram> HologramClass,
-    TSubclassOf<UFGBuildGunModeDescriptor> BuildModeClass,
-    UPARAM(ref) const FBGC_BuildMode_DataEntry& HologramBuildModeDataEntry,
-    bool bSave = true);
+      TSubclassOf<AFGHologram> HologramClass,
+      TSubclassOf<UFGBuildGunModeDescriptor> BuildModeClass,
+      UPARAM(ref) const FBGC_BuildMode_DataEntry& HologramBuildModeDataEntry,
+      bool bSave = true);
 
   /**
    * Should configurations for buildables that are locked be shown?
@@ -144,8 +135,7 @@ public:
    * @param HologramClass The hologram class to search for.
    */
   UFUNCTION(BlueprintCallable, Category = "BuildGunConfig|BuildModes")
-  const FBGC_BuildMode_Data& ResolveBuildModeInheritance(
-    TSubclassOf<AFGHologram> HologramClass, UPARAM(ref) const FBGC_BuildMode_Data& HologramBuildModeData);
+  const FBGC_BuildMode_Data& ResolveBuildModeInheritance(TSubclassOf<AFGHologram> HologramClass, UPARAM(ref) const FBGC_BuildMode_Data& HologramBuildModeData);
 
   /**
    * Retrieves the build mode data for a specific hologram, following aliases and inheritance.
@@ -155,9 +145,7 @@ public:
    * @return true if the build mode data was found, false otherwise.
    */
   UFUNCTION(BlueprintCallable, Category = "BuildGunConfig|BuildModes")
-  bool ResolveBuildModeData(
-    TSubclassOf<AFGHologram> HologramClass,
-    UPARAM(DisplayName = "ResolvedBuildModeData") FBGC_BuildMode_Data& out_BuildModeData);
+  bool ResolveBuildModeData(TSubclassOf<AFGHologram> HologramClass, UPARAM(DisplayName = "ResolvedBuildModeData") FBGC_BuildMode_Data& out_BuildModeData);
 
   /**
    * Serializes the build mode data.
@@ -202,9 +190,8 @@ public:
    * @param HologramData The hologram data to use.
    */
   UFUNCTION(BlueprintCallable, Category = "BuildGunConfig|BuildModes")
-  void FilterAndSortBuildModes(
-    UPARAM(ref) const FBGC_BuildMode_Data& HologramBuildModeData,
-    TArray<TSubclassOf<UFGBuildGunModeDescriptor>>& out_BuildModes) const;
+  void
+  FilterAndSortBuildModes(UPARAM(ref) const FBGC_BuildMode_Data& HologramBuildModeData, TArray<TSubclassOf<UFGBuildGunModeDescriptor>>& out_BuildModes) const;
 
 private:
 #if WITH_EDITOR
