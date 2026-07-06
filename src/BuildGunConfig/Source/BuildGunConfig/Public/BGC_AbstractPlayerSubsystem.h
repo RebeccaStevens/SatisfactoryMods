@@ -2,202 +2,321 @@
 
 #include "CoreMinimal.h"
 
-#include "FGRecipeManager.h"
-
 #include "Subsystem/ModSubsystem.h"
-#include "UI/FGInteractWidget.h"
-#include "UI/FGUserWidget.h"
-#include "UI/FGWidgetSwitcher.h"
-#include "UI/FGWindow.h"
 
-#include "UserSettings/BGC_BuildMode_Data.h"
+#include "UserSettings/BGC_BuildModeGroup.h"
 
 #include "BGC_AbstractPlayerSubsystem.generated.h"
 
-UCLASS(Abstract)
-class BUILDGUNCONFIG_API ABGC_AbstractPlayerSubsystem : public AModSubsystem {
-  GENERATED_BODY()
+/**
+ * A navigation history entry's data.
+ */
+UCLASS(Abstract, BlueprintType, EditInlineNew, Const)
+class BUILDGUNCONFIG_API UBGC_NavigationHistoryEntryData : public UObject {
+	GENERATED_BODY()
+};
 
-protected:
-  /**
-   * The recipe manager.
-   */
-  UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, meta = (EditCondition = false, EditConditionHides))
-  TObjectPtr<AFGRecipeManager> RecipeManager;
-
-  /**
-   * The navigation history of the widget switcher.
-   */
-  UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "BuildGunConfig", meta = (EditCondition = false, EditConditionHides))
-  TArray<int32> NavigationHistory;
-
-  /**
-   * The build mode data for each build mode for each hologram that we have data on.
-   */
-  UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "BuildGunConfig|BuildModes")
-  TMap<TSubclassOf<AFGHologram>, FBGC_BuildMode_Data> BuildModesData;
-
-  /**
-   * Any holograms that should **always** share the same build mode data as another hologram.
-   */
-  UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "BuildGunConfig|BuildModes")
-  TMap<TSubclassOf<AFGHologram>, TSubclassOf<AFGHologram>> BuildModesAliases;
+/**
+ * A navigation history entry's data with a build mode group id.
+ */
+UCLASS()
+class BUILDGUNCONFIG_API UBGC_NavigationHistoryEntryData_BuildModeGroupId : public UBGC_NavigationHistoryEntryData {
+	GENERATED_BODY()
 
 public:
-  virtual void BeginPlay() override;
+	UFUNCTION(BlueprintPure, DisplayName = "Make Navigation History Entry Data")
+	static UBGC_NavigationHistoryEntryData_BuildModeGroupId* Make(const int32 BuildModeGroupId) {
+		auto Value = NewObject<UBGC_NavigationHistoryEntryData_BuildModeGroupId>();
+		Value->BuildModeGroupId = BuildModeGroupId;
+		return MoveTemp(Value);
+	}
 
-  /**
-   * Retrieves the icon for a specific hologram.
-   *
-   * @param HologramClass The class of the hologram to retrieve the icon for. This must be a key in the BuildModesData
-   * map (it cannot be an alias).
-   */
-  UFUNCTION(BlueprintCallable, Category = "BuildGunConfig|BuildModes")
-  UTexture2D* GetBuildModeIconChecked(TSubclassOf<AFGHologram> HologramClass);
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	int32 BuildModeGroupId;
+};
 
-  /**
-   * Retrieves the build mode data for every build mode of a specific hologram.
-   *
-   * @param HologramClass The class of the hologram to retrieve the data for.
-   */
-  UFUNCTION(BlueprintCallable, Category = "BuildGunConfig|BuildModes")
-  FBGC_BuildMode_Data& GetBuildModeDataChecked(TSubclassOf<AFGHologram> HologramClass);
+/**
+ * Entry data for the navigation history of the widget switcher.
+ */
+USTRUCT(BlueprintType)
+struct FBGC_NavigationHistoryEntry {
+	GENERATED_BODY()
 
-  /**
-   * Retrieves the build mode data for a specific build mode of a specific hologram.
-   *
-   * @param HologramClass The class of the hologram to retrieve the data for. This must be a key in the BuildModesData
-   * map (it cannot be an alias).
-   * @param BuildModeClass The class of the build mode to retrieve the data for.
-   */
-  UFUNCTION(BlueprintCallable, Category = "BuildGunConfig|BuildModes")
-  FBGC_BuildMode_DataEntry& GetBuildModeDataEntryChecked(TSubclassOf<AFGHologram> HologramClass, TSubclassOf<UFGBuildGunModeDescriptor> BuildModeClass);
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	int32 Index;
 
-  /**
-   * Resets all build mode data.
-   */
-  UFUNCTION(BlueprintCallable, Category = "BuildGunConfig|BuildModes")
-  void ResetBuildModeData(bool bSave = true);
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	TObjectPtr<UBGC_NavigationHistoryEntryData> Data;
+};
 
-  /**
-   * Removes all build mode data for a specific hologram.
-   */
-  UFUNCTION(BlueprintCallable, Category = "BuildGunConfig|BuildModes")
-  void RemoveBuildModeData(TSubclassOf<AFGHologram> HologramClass, bool bSave = true);
+UCLASS(Abstract)
+class BUILDGUNCONFIG_API ABGC_AbstractPlayerSubsystem : public AModSubsystem {
+	GENERATED_BODY()
 
-  /**
-   * Removes the build mode data for a specific build mode of a specific hologram.
-   */
-  UFUNCTION(BlueprintCallable, Category = "BuildGunConfig|BuildModes")
-  void RemoveBuildModeDataEntry(TSubclassOf<AFGHologram> HologramClass, TSubclassOf<UFGBuildGunModeDescriptor> BuildModeClass, bool bSave = true);
+protected:
+	/**
+	 * The navigation history of the widget switcher.
+	 */
+	UPROPERTY(
+		EditDefaultsOnly,
+		BlueprintReadWrite,
+		Category = "BuildGunConfig",
+		meta = (EditCondition = false, EditConditionHides)
+	)
+	TArray<FBGC_NavigationHistoryEntry> NavigationHistory;
 
-  /**
-   * Sets the build mode data of a specific hologram.
-   *
-   * @param HologramClass The class of the hologram the build mode belongs to. This must be a key in the BuildModesData
-   * map (it cannot be an alias).
-   * @param HologramBuildModeData The build mode data to save.
-   */
-  UFUNCTION(BlueprintCallable, Category = "BuildGunConfig|BuildModes")
-  void SetBuildModeDataChecked(TSubclassOf<AFGHologram> HologramClass, UPARAM(ref) const FBGC_BuildMode_Data& HologramBuildModeData, bool bSave = true);
+	TArray<TSharedRef<FBGC_BuildModeGroup>> BuildModeGroups;
+	TMap<TSubclassOf<AFGHologram>, TWeakPtr<FBGC_BuildModeGroup>> BuildModeGroupsByHologram;
 
-  /**
-   * Set the build mode data for a specific build mode of a specific hologram.
-   *
-   * @param HologramClass The class of the hologram the build mode belongs to. This must be a key in the BuildModesData
-   * map (it cannot be an alias).
-   * @param BuildModeClass The class of the build mode to save the data for.
-   * @param HologramBuildModeDataEntry The build mode data to save.
-   */
-  UFUNCTION(BlueprintCallable, Category = "BuildGunConfig|BuildModes")
-  void SetBuildModeDataEntryChecked(
-      TSubclassOf<AFGHologram> HologramClass,
-      TSubclassOf<UFGBuildGunModeDescriptor> BuildModeClass,
-      UPARAM(ref) const FBGC_BuildMode_DataEntry& HologramBuildModeDataEntry,
-      bool bSave = true);
+	UPROPERTY(
+		EditDefaultsOnly,
+		BlueprintReadWrite,
+		Category = "BuildGunConfig|BuildModes",
+		DisplayName = "BuildModeGroups"
+	)
+	TArray<FBGC_PredefinedBuildModeGroup> PredefinedBuildModeGroups;
 
-  /**
-   * Should configurations for buildables that are locked be shown?
-   */
-  UFUNCTION(BlueprintImplementableEvent, Category = "BuildGunConfig|BuildModes")
-  bool ShowLockedBuildables();
+	/**
+	 * The display name used when a build mode has no display name.
+	 */
+	UPROPERTY(EditDefaultsOnly, Category = "BuildGunConfig|BuildModes")
+	FText DefaultBuildModeDisplayName;
 
-  /**
-   * Rebuilds the build mode data.
-   */
-  UFUNCTION(BlueprintCallable, Category = "BuildGunConfig|BuildModes")
-  void RebuildBuildModesData();
+	/**
+	 * The icon used when a build mode has no icon.
+	 */
+	UPROPERTY(EditDefaultsOnly, Category = "BuildGunConfig|BuildModes")
+	TObjectPtr<UTexture2D> DefaultBuildModeIcon;
 
-  /**
-   * Find the build mode data for a hologram class, following any inheritance.
-   * If there is no inheritance, the original data is returned.
-   *
-   * @param HologramClass The hologram class to search for.
-   */
-  UFUNCTION(BlueprintCallable, Category = "BuildGunConfig|BuildModes")
-  const FBGC_BuildMode_Data& ResolveBuildModeInheritance(TSubclassOf<AFGHologram> HologramClass, UPARAM(ref) const FBGC_BuildMode_Data& HologramBuildModeData);
+	virtual void BeginPlay() override;
 
-  /**
-   * Retrieves the build mode data for a specific hologram, following aliases and inheritance.
-   *
-   * @param HologramClass The hologram class to search for.
-   * @param out_BuildModeData The build mode data to fill.
-   * @return true if the build mode data was found, false otherwise.
-   */
-  UFUNCTION(BlueprintCallable, Category = "BuildGunConfig|BuildModes")
-  bool ResolveBuildModeData(TSubclassOf<AFGHologram> HologramClass, UPARAM(DisplayName = "ResolvedBuildModeData") FBGC_BuildMode_Data& out_BuildModeData);
+public:
+	/**
+	 * Get the build mode group ids that should be shown in the UI.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "BuildGunConfig|BuildModes")
+	TArray<int32> GetBuildModeGroupIdsForDisplay() const;
 
-  /**
-   * Serializes the build mode data.
-   */
-  FString BuildModesDataToJsonString();
+	/**
+	 * Get the build mode group with the specified id.
+	 *
+	 * @param BuildModeGroupId The id of the build mode group to get.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "BuildGunConfig|BuildModes")
+	FBGC_BuildModeGroup& GetBuildModeGroup(const int32 BuildModeGroupId);
 
-  /**
-   * Get a JSON representation of the mutable parts of the build mode data.
-   */
-  TSharedPtr<FJsonObject> BuildModesDataToJson();
+	/**
+	 * Get the supported build modes for a build mode group.
+	 *
+	 * @param BuildModeGroupId The id of the build mode group to get the build modes for.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "BuildGunConfig|BuildModes")
+	TArray<TSubclassOf<UFGBuildGunModeDescriptor>> GetSupportedBuildModes(const int32 BuildModeGroupId) const;
 
-  /**
-   * Saves the build mode data to the session settings.
-   */
-  UFUNCTION(BlueprintCallable, Category = "BuildGunConfig|BuildModes")
-  void SaveBuildModeData();
+	/**
+	 * Make sure the build mode group's data for the given id is valid.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "BuildGunConfig|BuildModes")
+	void EnsureValidBuildModeGroup(const int32 BuildModeGroupId);
 
-  /**
-   * Loads the build mode data from the session settings.
-   */
-  UFUNCTION(BlueprintCallable, Category = "BuildGunConfig|BuildModes")
-  void LoadBuildModeData();
+	/**
+	 * Make sure the given build mode group's data is valid.
+	 */
+	void EnsureValidBuildModeGroup(const TSharedRef<FBGC_BuildModeGroup> BuildModeGroup) const;
 
-  /**
-   * Loads the build mode data from a JSON string.
-   *
-   * @param JsonString The JSON string to load the build mode data from.
-   */
-  void LoadBuildModeData(const FString& JsonString);
+	/**
+	 * Make sure the build mode group's build modes are valid for the given build mode group id.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "BuildGunConfig|BuildModes")
+	void EnsureValidBuildModeGroupBuildModes(const int32 BuildModeGroupId);
 
-  /**
-   * Loads the build mode data from a JSON object.
-   *
-   * @param JsonObject The JSON object to load the build mode data from.
-   */
-  void LoadBuildModeData(TSharedPtr<FJsonObject> JsonObject);
+	/**
+	 * Make sure the given build mode group's build modes are valid.
+	 */
+	static void EnsureValidBuildModeGroupBuildModes(const TSharedRef<FBGC_BuildModeGroup> BuildModeGroup);
 
-  /**
-   * Filter and sort the build modes for a hologram.
-   *
-   * @param out_BuildModes The build modes modified in place.
-   * @param HologramData The hologram data to use.
-   */
-  UFUNCTION(BlueprintCallable, Category = "BuildGunConfig|BuildModes")
-  void
-  FilterAndSortBuildModes(UPARAM(ref) const FBGC_BuildMode_Data& HologramBuildModeData, TArray<TSubclassOf<UFGBuildGunModeDescriptor>>& out_BuildModes) const;
+	/**
+	 * Resets all build mode groups.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "BuildGunConfig|BuildModes")
+	void ResetBuildModeData();
+
+	/**
+	 * Removes all build mode data for a specific build mode group.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "BuildGunConfig|BuildModes")
+	void RemoveBuildModeGroupData(const int32 BuildModeGroupId);
+
+	/**
+	 * Removes all build mode data for a specific build mode group.
+	 */
+	static void RemoveBuildModeGroupData(const TSharedRef<FBGC_BuildModeGroup> BuildModeGroup);
+
+	/**
+	 * Sets if the build mode group should inherit build modes from another build mode group.
+	 *
+	 * @param BuildModeGroupId The id of the build mode group to set should inherit for.
+	 * @param ShouldInherit
+	 */
+	UFUNCTION(BlueprintCallable, Category = "BuildGunConfig|BuildModes")
+	void SetBuildModeGroupInherits(const int32 BuildModeGroupId, const bool ShouldInherit);
+
+	/**
+	 * Set the build mode data for a specific build mode within the specified build mode group.
+	 *
+	 * @param BuildModeGroupId The build mode group id to set the build mode data for.
+	 * @param BuildModeClass The build mode class the data is for.
+	 * @param BuildModeData The build mode data to add to the build mode group.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "BuildGunConfig|BuildModes")
+	void SetBuildModeGroupBuildMode(
+		const int32 BuildModeGroupId,
+		const TSubclassOf<UFGBuildGunModeDescriptor> BuildModeClass,
+		UPARAM(ref) const FBGC_BuildModeGroup_BuildMode& BuildModeData
+	);
+
+	/**
+	 * Should configurations for buildables that are locked be shown?
+	 */
+	UFUNCTION(BlueprintImplementableEvent, Category = "BuildGunConfig|BuildModes")
+	// ReSharper disable once CppUEBlueprintImplementableEventNotImplemented -- Implemented by this BP of this class.
+	bool ShouldShowLockedBuildables() const;
+
+	/**
+	 * Rebuilds the build mode groups.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "BuildGunConfig|BuildModes")
+	void RebuildBuildModeGroups();
 
 private:
+	/**
+	 * Create build mode groups from predefined group data.
+	 * All existing build mode group data will be removed.
+	 */
+	void InitializeBuildModeGroups();
+
+	/**
+	 * Get a map of each building descriptor by the hologram that creates it.
+	 */
+	TSharedRef<TMap<TSubclassOf<AFGHologram>, TArray<TSubclassOf<UFGBuildingDescriptor>>>>
+	GetBuildingDescriptorsByHologram();
+
+	/**
+	 * Group each hologram by the build mode list they support.
+	 */
+	static TSharedRef<TMap<TArray<TSubclassOf<UFGBuildGunModeDescriptor>>, TSet<TSubclassOf<AFGHologram>>>>
+	GetHologramsByBuildModes(
+		TSharedRef<TMap<TSubclassOf<AFGHologram>, TArray<TSubclassOf<UFGBuildingDescriptor>>>>
+		BuildingDescriptorsByHologram
+	);
+
+	/**
+	 * The return type data for `PopulateBuildModeGroups`.
+	 */
+	struct FBGC_BuildModeGroupData {
+		TSet<TSubclassOf<AFGHologram>> Holograms;
+		TArray<TSubclassOf<UFGBuildGunModeDescriptor>> BuildModes;
+	};
+
+	/**
+	 * Add new build mode groups for holograms that don't already have a group.
+	 */
+	TMap<TWeakPtr<FBGC_BuildModeGroup>, FBGC_BuildModeGroupData> PopulateBuildModeGroups(
+		TSharedRef<TMap<TArray<TSubclassOf<UFGBuildGunModeDescriptor>>, TSet<TSubclassOf<AFGHologram>>>> HologramsByBuildModes
+	);
+
+public:
+	/**
+	 * Find the id of the build mode group that the specified build mode group inherits from.
+	 *
+	 * @param BuildModeGroupId The id of the build mode group to resolve.
+	 * @return The id of the build mode group to inherit from, or -1 if it doesn't inherit.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "BuildGunConfig|BuildModes")
+	int32 GetBuildModeGroupInheritFrom(const int32 BuildModeGroupId) const;
+
+	/**
+	 * Find the build mode group that the specified build mode group inherits from.
+	 *
+	 * @param BuildModeGroup The build mode group to resolve.
+	 */
+	TSharedPtr<FBGC_BuildModeGroup> GetBuildModeGroupInheritFrom(
+		const TSharedRef<FBGC_BuildModeGroup> BuildModeGroup
+	) const;
+
+	/**
+	 * Find the id of the build mode group at the top of the inheritance chain.
+	 *
+	 * @param BuildModeGroupId The id of the build mode group to resolve.
+	 * @return The id of the build mode group with the build modes to use.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "BuildGunConfig|BuildModes")
+	int32 ResolveBuildModeInheritance(const int32 BuildModeGroupId) const;
+
+	/**
+	 * Find the root build mode group of the given build mode group, following inheritance.
+	 *
+	 * @param BuildModeGroup The build mode group to resolve.
+	 */
+	TSharedRef<FBGC_BuildModeGroup> ResolveBuildModeInheritance(
+		const TSharedRef<FBGC_BuildModeGroup> BuildModeGroup
+	) const;
+
+	/**
+	 * Retrieves the build mode group data for a specific hologram class.
+	 *
+	 * @param HologramClass The hologram class to search for.
+	 */
+	TSharedPtr<FBGC_BuildModeGroup> FindBuildModeGroupOf(const TSubclassOf<AFGHologram> HologramClass) const;
+
+	/**
+	 * Serializes the build mode group.
+	 */
+	FString BuildModeDataToJsonString();
+
+	/**
+	 * Get a JSON representation of the mutable parts of the build mode group.
+	 */
+	TSharedPtr<FJsonObject> BuildModeDataToJson();
+
+	/**
+	 * Saves the build mode data to disk.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "BuildGunConfig|BuildModes")
+	void SaveBuildModeData();
+
+	/**
+	 * Loads the build mode data from disk.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "BuildGunConfig|BuildModes")
+	void LoadBuildModeData();
+
+	/**
+	 * Loads the build mode data from a JSON string.
+	 *
+	 * @param JsonString The JSON string to load the build mode data from.
+	 */
+	void LoadBuildModeData(const FString& JsonString);
+
+	/**
+	 * Loads the build mode data from a JSON object.
+	 *
+	 * @param JsonObject The JSON object to load the build mode data from.
+	 */
+	void LoadBuildModeData(const TSharedRef<FJsonObject> JsonObject);
+
+	/**
+	 * Filter and sort the build modes for a hologram.
+	 *
+	 * @param BuildModeGroup The hologram data to use.
+	 * @param BuildModes The build modes list, modified in place.
+	 */
+	void FilterAndSortBuildModes(
+		TSharedRef<FBGC_BuildModeGroup> BuildModeGroup,
+		TArray<TSubclassOf<UFGBuildGunModeDescriptor>>& BuildModes
+	) const;
+
 #if WITH_EDITOR
-  void SortAndReindexBuildModesData();
-  virtual EDataValidationResult ValidateBuildModeInheritance(FDataValidationContext& Context) const;
-  virtual EDataValidationResult IsDataValid(FDataValidationContext& Context) const override;
-  virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	virtual void PostEditChangeChainProperty(FPropertyChangedChainEvent& Event) override;
 #endif
 };

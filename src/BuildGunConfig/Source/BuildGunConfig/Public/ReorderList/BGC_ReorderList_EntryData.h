@@ -7,16 +7,16 @@
 
 UINTERFACE(MinimalAPI, Blueprintable, BlueprintType, Category = "BuildGunConfig|EntryList|EntryData")
 class UBGC_ReorderList_EntryData : public UInterface {
-  GENERATED_BODY()
+	GENERATED_BODY()
 };
 
 class IBGC_ReorderList_EntryData {
-  GENERATED_BODY()
+	GENERATED_BODY()
 
 public:
-  UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "BuildGunConfig|EntryList|EntryData")
-  int32 GetOriginalIndex();
+	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "BuildGunConfig|EntryList|EntryData")
+	int32 GetOriginalIndex();
 
-  UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "BuildGunConfig|EntryList|EntryData")
-  FText GetDisplayText();
+	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "BuildGunConfig|EntryList|EntryData")
+	FText GetDisplayText();
 };

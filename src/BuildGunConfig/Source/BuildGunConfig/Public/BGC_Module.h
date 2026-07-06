@@ -8,6 +8,6 @@ DECLARE_LOG_CATEGORY_EXTERN(LogBuildGunConfig, Verbose, All);
 
 class FBuildGunConfigModule : public IModuleInterface {
 public:
-  virtual void StartupModule() override;
-  virtual void ShutdownModule() override;
+	virtual void StartupModule() override;
+	virtual void ShutdownModule() override;
 };

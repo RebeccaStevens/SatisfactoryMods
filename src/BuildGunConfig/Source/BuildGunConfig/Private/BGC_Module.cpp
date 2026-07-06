@@ -6,11 +6,9 @@
 
 DEFINE_LOG_CATEGORY(LogBuildGunConfig);
 
-void FBuildGunConfigModule::StartupModule() {
-}
+void FBuildGunConfigModule::StartupModule() {}
 
-void FBuildGunConfigModule::ShutdownModule() {
-}
+void FBuildGunConfigModule::ShutdownModule() {}
 
 #undef LOCTEXT_NAMESPACE
 
