@@ -4,50 +4,10 @@
 
 #include "Subsystem/ModSubsystem.h"
 
+#include "BGC_NavigationHistory.h"
 #include "UserSettings/BGC_BuildModeGroup.h"
 
 #include "BGC_AbstractPlayerSubsystem.generated.h"
-
-/**
- * A navigation history entry's data.
- */
-UCLASS(Abstract, BlueprintType, EditInlineNew, Const)
-class BUILDGUNCONFIG_API UBGC_NavigationHistoryEntryData : public UObject {
-	GENERATED_BODY()
-};
-
-/**
- * A navigation history entry's data with a build mode group id.
- */
-UCLASS()
-class BUILDGUNCONFIG_API UBGC_NavigationHistoryEntryData_BuildModeGroupId : public UBGC_NavigationHistoryEntryData {
-	GENERATED_BODY()
-
-public:
-	UFUNCTION(BlueprintPure, DisplayName = "Make Navigation History Entry Data")
-	static UBGC_NavigationHistoryEntryData_BuildModeGroupId* Make(const int32 BuildModeGroupId) {
-		auto Value = NewObject<UBGC_NavigationHistoryEntryData_BuildModeGroupId>();
-		Value->BuildModeGroupId = BuildModeGroupId;
-		return MoveTemp(Value);
-	}
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	int32 BuildModeGroupId;
-};
-
-/**
- * Entry data for the navigation history of the widget switcher.
- */
-USTRUCT(BlueprintType)
-struct FBGC_NavigationHistoryEntry {
-	GENERATED_BODY()
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	int32 Index;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	TObjectPtr<UBGC_NavigationHistoryEntryData> Data;
-};
 
 UCLASS(Abstract)
 class BUILDGUNCONFIG_API ABGC_AbstractPlayerSubsystem : public AModSubsystem {
@@ -68,11 +28,14 @@ protected:
 	TArray<TSharedRef<FBGC_BuildModeGroup>> BuildModeGroups;
 	TMap<TSubclassOf<AFGHologram>, TWeakPtr<FBGC_BuildModeGroup>> BuildModeGroupsByHologram;
 
+	/**
+	 * Known Build Mode Groups.
+	 */
 	UPROPERTY(
 		EditDefaultsOnly,
 		BlueprintReadWrite,
 		Category = "BuildGunConfig|BuildModes",
-		DisplayName = "BuildModeGroups"
+		DisplayName = "Build Mode Groups"
 	)
 	TArray<FBGC_PredefinedBuildModeGroup> PredefinedBuildModeGroups;
 
@@ -176,11 +139,34 @@ public:
 	);
 
 	/**
-	 * Should configurations for buildables that are locked be shown?
+	 * Should configurations for buildables that are not yet unlocked be shown?
 	 */
-	UFUNCTION(BlueprintImplementableEvent, Category = "BuildGunConfig|BuildModes")
-	// ReSharper disable once CppUEBlueprintImplementableEventNotImplemented -- Implemented by this BP of this class.
+	UFUNCTION(BlueprintNativeEvent, Category = "BuildGunConfig|BuildModes")
 	bool ShouldShowLockedBuildables() const;
+	bool ShouldShowLockedBuildables_Implementation() const {
+		checkNoEntry();
+		return false;
+	}
+
+	/**
+	 * Get the configured default nudge distance.
+	 */
+	UFUNCTION(BlueprintNativeEvent, Category = "BuildGunConfig|Nudging")
+	float GetDefaultNudgeDistance() const;
+	float GetDefaultNudgeDistance_Implementation() const {
+		checkNoEntry();
+		return 100.0f;
+	}
+
+	/**
+	 * Get the configured default rotation step.
+	 */
+	UFUNCTION(BlueprintNativeEvent, Category = "BuildGunConfig|RotationStep")
+	int32 GetDefaultRotationStep() const;
+	int32 GetDefaultRotationStep_Implementation() const {
+		checkNoEntry();
+		return 15;
+	}
 
 	/**
 	 * Rebuilds the build mode groups.

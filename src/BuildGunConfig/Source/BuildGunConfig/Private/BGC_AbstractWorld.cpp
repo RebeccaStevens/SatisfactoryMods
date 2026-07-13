@@ -55,6 +55,7 @@ void UBGC_AbstractWorld::DispatchLifecycleEvent(const ELifecyclePhase Phase) {
 
 void UBGC_AbstractWorld::SubscribeToHooks() {
 	const auto BuildGunStateBuild = GetMutableDefault<UFGBuildGunStateBuild>();
+	const auto Hologram = GetMutableDefault<AFGHologram>();
 
 	/**
 	 * Filter out disabled build modes and sort the rest according to our config data.
@@ -98,4 +99,32 @@ void UBGC_AbstractWorld::SubscribeToHooks() {
 			Scope.Override(Result);
 		}
 	);
+
+	/**
+	 * Use the configured nudge distance.
+	 */
+	SUBSCRIBE_METHOD_VIRTUAL(AFGHologram::GetNudgeDistance, Hologram, ([this](auto& Scope, const AFGHologram* Self)
+	{
+		const float Result = Scope(Self);
+		if (!IsValid(PlayerSubsystem)) {
+			Scope.Override(Result);
+			return;
+		}
+
+		Scope.Override(PlayerSubsystem->GetDefaultNudgeDistance());
+	}));
+
+	/**
+	 * Use the configured rotation step.
+	 */
+	// SUBSCRIBE_METHOD_VIRTUAL(AFGHologram::GetRotationStep, Hologram, ([this](auto& Scope, const AFGHologram* Self)
+	// {
+	// 	const int32 Result = Scope(Self);
+	// 	if (!IsValid(PlayerSubsystem)) {
+	// 		Scope.Override(Result);
+	// 		return;
+	// 	}
+	//
+	// 	Scope.Override(PlayerSubsystem->GetDefaultRotationStep());
+	// }));
 }
