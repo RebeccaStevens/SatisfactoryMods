@@ -32,6 +32,16 @@
 		{
 			"Name": "GameFeatures",
 			"Enabled": true
+		},
+		{
+			"Name": "BlueBekaWidgets",
+			"Enabled": true,
+			"SemVersion": "^0.0.1"
+		},
+		{
+			"Name": "PlayerEquipmentWidgetSwitcher",
+			"Enabled": true,
+			"SemVersion": "^0.0.1"
 		}
 	]
 }

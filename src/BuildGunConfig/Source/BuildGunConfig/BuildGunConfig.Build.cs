@@ -77,6 +77,8 @@ public class BuildGunConfig : ModuleRules
     // Add public dependencies that you statically link with here.
     PublicDependencyModuleNames.AddRange(new string[]
     {
+      "BlueBekaWidgets",
+      "PlayerEquipmentWidgetSwitcher"
     });
 
     // Add private dependencies that you statically link with here.

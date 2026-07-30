@@ -38,7 +38,7 @@ public:
 	 * Find the first parent slot of the given widget that is a child of the given slot class.
 	 * Returns nullptr if no such slot is found.
 	 */
-	UFUNCTION(BlueprintCallable, Category = "Widget", meta = (DeterminesOutputType = "SlotClass"))
+	UFUNCTION(BlueprintCallable, Category = "Widget", meta = (DeterminesOutputType = "SlotClass", DeprecatedFunction))
 	static UPanelSlot* FindParentSlotOfClass(UWidget* Widget, const TSubclassOf<UPanelSlot> SlotClass);
 
 	/**
@@ -53,7 +53,7 @@ public:
 	 * Each item between the from and to index will be shifted in the direction of the move to fill the gap left by the
 	 * moved item.
 	 */
-	UFUNCTION(BlueprintCallable, Category = "BuildGunConfig|Array")
+	UFUNCTION(BlueprintCallable, Category = "BuildGunConfig|Array", meta = (DeprecatedFunction))
 	static void MoveItemInArray(UPARAM(ref) TArray<UObject*>& Array, int32 FromIndex, int32 ToIndex);
 
 	/**
@@ -62,7 +62,7 @@ public:
 	 * Each item between the from and to index will be shifted in the direction of the move to fill the gap left by the
 	 * moved item.
 	 */
-	UFUNCTION(BlueprintCallable, Category = "BuildGunConfig|ListView")
+	UFUNCTION(BlueprintCallable, Category = "BuildGunConfig|ListView", meta = (DeprecatedFunction))
 	static void MoveItemInListView(UListView* ListView, int32 FromIndex, int32 ToIndex);
 
 	/**
@@ -78,7 +78,7 @@ public:
 	/**
 	 * Reset the items in the list view of a reorder list to their original order.
 	 */
-	UFUNCTION(BlueprintCallable, Category = "BuildGunConfig|ReorderList")
+	UFUNCTION(BlueprintCallable, Category = "BuildGunConfig|ReorderList", meta = (DeprecatedFunction))
 	static void ResetReorderList(UListView* ListView);
 
 	/**
@@ -92,19 +92,19 @@ public:
 	/**
 	 * Round a value to the given number of decimal places.
 	 */
-	UFUNCTION(BlueprintPure, Category = "BuildGunConfig|Math")
+	UFUNCTION(BlueprintPure, Category = "BuildGunConfig|Math", meta = (DeprecatedFunction))
 	static double RoundWithPrecision(double Value, int32 Precision = 2, int32 Base = 10);
 
 	/**
 	 * Round a value to the given number of significant digits.
 	 */
-	UFUNCTION(BlueprintPure, Category = "BuildGunConfig|Math")
+	UFUNCTION(BlueprintPure, Category = "BuildGunConfig|Math", meta = (DeprecatedFunction))
 	static double RoundSignificantDigits(double Value, int32 SignificantDigits = 2, int32 Base = 10);
 
 	/**
 	 * Get the NaN value.
 	 */
-	UFUNCTION(BlueprintPure, Category = "BuildGunConfig|Math", meta = (DisplayName = "NaN", CompactNodeTitle = "NaN"))
+	UFUNCTION(BlueprintPure, Category = "BuildGunConfig|Math", meta = (DisplayName = "NaN", CompactNodeTitle = "NaN", DeprecatedFunction))
 	static double GetNaN() {
 		return NAN;
 	}
@@ -112,7 +112,7 @@ public:
 	/**
 	 * Check if a value is not a number.
 	 */
-	UFUNCTION(BlueprintPure, Category = "BuildGunConfig|Math", meta = (DisplayName = "Is NaN"))
+	UFUNCTION(BlueprintPure, Category = "BuildGunConfig|Math", meta = (DisplayName = "Is NaN", DeprecatedFunction))
 	static bool IsNaN(const double Value) {
 		return isnan(Value);
 	}
@@ -122,13 +122,13 @@ public:
 	 *
 	 * The array must be sorted in ascending order.
 	 */
-	UFUNCTION(BlueprintPure, Category = "BuildGunConfig|Array")
+	UFUNCTION(BlueprintPure, Category = "BuildGunConfig|Array", meta = (DeprecatedFunction))
 	static double FindClosestValueInSortedArray(const TArray<double>& Values, double Value);
 
 	/**
 	 * Parse a number with a unit suffix.
 	 */
-	UFUNCTION(BlueprintPure, Category = "BuildGunConfig|String")
+	UFUNCTION(BlueprintPure, Category = "BuildGunConfig|String", meta = (DeprecatedFunction))
 	static FUnitValue ParseNumberWithUnitSuffix(const FText& NumberWithUnitSuffix);
 
 protected:

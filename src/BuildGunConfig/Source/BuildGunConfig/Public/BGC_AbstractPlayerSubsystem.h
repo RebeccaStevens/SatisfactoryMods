@@ -23,7 +23,7 @@ protected:
 		Category = "BuildGunConfig",
 		meta = (EditCondition = false, EditConditionHides)
 	)
-	TArray<FBGC_NavigationHistoryEntry> NavigationHistory;
+	TArray<FPEWS_NavigationHistoryEntry> NavigationHistory;
 
 	TArray<TSharedRef<FBGC_BuildModeGroup>> BuildModeGroups;
 	TMap<TSubclassOf<AFGHologram>, TWeakPtr<FBGC_BuildModeGroup>> BuildModeGroupsByHologram;

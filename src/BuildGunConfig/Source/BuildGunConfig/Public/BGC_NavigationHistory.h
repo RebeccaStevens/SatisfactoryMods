@@ -2,23 +2,17 @@
 
 #include "CoreMinimal.h"
 
+#include "PEWS_NavigationHistory.h"
+
 #include "UserSettings/BGC_BuildModeGroup.h"
 
 #include "BGC_NavigationHistory.generated.h"
 
 /**
- * A navigation history entry's data.
- */
-UCLASS(Abstract, BlueprintType, EditInlineNew, Const)
-class BUILDGUNCONFIG_API UBGC_NavigationHistoryEntryData : public UObject {
-	GENERATED_BODY()
-};
-
-/**
  * A navigation history entry's data with a build mode group id.
  */
 UCLASS()
-class BUILDGUNCONFIG_API UBGC_NavigationHistoryEntryData_BuildModeGroupId : public UBGC_NavigationHistoryEntryData {
+class BUILDGUNCONFIG_API UBGC_NavigationHistoryEntryData_BuildModeGroupId : public UPEWS_NavigationHistoryEntryData {
 	GENERATED_BODY()
 
 public:
@@ -31,18 +25,4 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	int32 BuildModeGroupId;
-};
-
-/**
- * Entry data for the navigation history of the widget switcher.
- */
-USTRUCT(BlueprintType)
-struct FBGC_NavigationHistoryEntry {
-	GENERATED_BODY()
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	int32 Index;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	TObjectPtr<UBGC_NavigationHistoryEntryData> Data;
 };

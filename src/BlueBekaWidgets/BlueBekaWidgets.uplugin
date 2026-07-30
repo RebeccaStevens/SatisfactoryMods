@@ -1,0 +1,38 @@
+{
+	"FileVersion": 3,
+	"Version": 1,
+	"VersionName": "0.0.1",
+	"SemVersion": "0.0.1",
+	"GameVersion": ">=491125",
+	"FriendlyName": "BlueBeka's Widgets",
+	"Description": "Common widgets for my mods.",
+	"Category": "Modding",
+	"CreatedBy": "BlueBeka",
+	"CreatedByURL": "https://ficsit.app/user/BuimU33Ln6hzMu",
+	"DocsURL": "",
+	"MarketplaceURL": "",
+	"SupportURL": "",
+	"CanContainContent": true,
+	"IsBetaVersion": false,
+	"IsExperimentalVersion": false,
+	"Installed": false,
+	"Modules": [
+		{
+			"Name": "BlueBekaWidgets",
+			"Type": "Runtime",
+			"LoadingPhase": "Default"
+		},
+		{
+		  "Name": "BlueBekaWidgetsEditor",
+		  "Type": "Editor",
+		  "LoadingPhase": "Default"
+		}
+	],
+	"Plugins": [
+		{
+			"Name": "SML",
+			"Enabled": true,
+			"SemVersion": "^3.12.0"
+		}
+	]
+}
